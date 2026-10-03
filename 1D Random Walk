@@ -1,0 +1,43 @@
+# Libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+
+# Parameters and Variables
+datapoints = 7000 # number of iterrations of a walk
+data = np.array([])
+index = 0
+
+# Simulation loop
+for i in range(datapoints):
+    x = 0
+    t = 3000 # number of steps of each walk
+    p = 0.5
+
+    for i in range(t):
+        r = random.random()
+        if r > p :
+            x-=1
+        elif r < p:
+            x+=1
+        elif r == p:
+            r2 = random.randint(0,1)
+            if r2 == 0:
+                x-=1
+            else:
+                x+=1
+    data = np.append(data,x)
+    index+=1
+
+# Results 
+mean = np.mean(data)
+variance = np.var(data)
+
+# Plotting Results
+bins_array = np.arange(-501, 503, 2)
+plt.hist(data, bins=bins_array, color='r', density=True, edgecolor='red')
+plt.title("Final displacements of " + str(datapoints) + " random walks")
+plt.xlabel("Distance from origin")
+plt.ylabel("Probability Density")
+plt.xlim(-500, 500)
+plt.show()
