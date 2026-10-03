@@ -1,0 +1,109 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+random.seed(42)
+
+# Parameters and Variables for Generating an Albert - Barabasi Network
+dimension = 100
+degree = 0
+
+# FUNCTIONS TO CONSTRUCT ALBERT-BARABASI NETWORK
+''' Given an existing Network, this function gives the probability array
+of an incoming node attatching to different existing nodes'''   
+def sample_space(n):
+    prob = []
+    total = 0
+    for j in range(n):
+        node_degree = sum(adj_matrix[j][:n])
+        prob.append(node_degree)
+        total += node_degree
+    if total == 0:
+        return np.ones(n) / n # uniform probabilities if no existing edges
+    return np.array(prob) / total
+
+'''given the probability array of n discrete exclusive and exhaustive events,
+this function chooses one event based on given probability'''  
+def event(prob_event):
+    prob_event = np.array(prob_event, dtype=float)
+    partition = [0]
+    sum = 0
+    for i in range(len(prob_event)):
+        sum += prob_event[i]
+        partition.append(sum)
+    r = random.random()
+    for i in range(len(partition) - 1):
+        if partition[i] <= r < partition[i + 1]:
+            return(i)
+
+
+# CONSTRUCTING THE ADJACENCY MATRIX
+"""This loop grows an Albert Barabasi Network using preferential attatchment 
+ utilising the func above """
+adj_matrix = np.zeros((dimension,dimension))
+for i in range(1,dimension):
+    if i == 1:
+        adj_matrix[0][1] = 1
+        adj_matrix[1][0] = 1
+    else:
+        probs = sample_space(i)
+        picks = set()
+        
+        k = min(3,i)
+        while len(picks) < k:
+            picks.add(event(probs))
+        # Add undirected connections in adjacency matrix
+        for node in picks:
+            adj_matrix[i][node] = 1
+            adj_matrix[node][i] = 1
+               
+np.save("AB_Adj_matrix" + str(dimension) + "nodes",adj_matrix)       
+
+
+# RANDOM WALK PARAMETERS
+steps = 10**5
+total_links = sum(sum(row) for row in adj_matrix) // 2
+x = 2
+
+# RANDOM WALK  LOOP
+''' This loop executes the random walk '''
+walk = []
+for i in range(steps):
+    neighbour = -1
+    adj_nodes = []
+    for j in adj_matrix[x]:
+        neighbour += 1
+        if j == 1:
+            adj_nodes.append(neighbour)
+    
+    pick = random.randint(0, len(adj_nodes) - 1)
+    x = adj_nodes[pick]
+    if i > 0.3 * steps: # Removing initial starting point bias
+        walk.append(x)
+
+
+# ANALYSING DATA FROM RANDOM WALK
+'''It is known analytically that the probability of an unbiased random walker
+visiting a node is proportional to its degree in an undirected connected network.
+I test the same here to validate the simulation'''
+node_degrees = [sum(row) for row in adj_matrix]
+num_visits = [0]*dimension
+for i in (walk):
+    num_visits[i] += 1
+freq_visit = np.array(num_visits)/len(walk)
+
+# Theoretical line
+deg_sum = np.sum(adj_matrix)
+x_vals = np.arange(0, max(node_degrees) + 1)
+y_vals = x_vals / deg_sum
+plt.plot(x_vals, y_vals)
+
+plt.plot(x_vals, y_vals, color="red", label="Theoretical Line")
+plt.scatter(node_degrees, freq_visit, color="blue", label="Simulation Data", alpha=0.7)
+
+plt.title(f"Unbiased Random Walk ({dimension} nodes, {steps} steps)")
+plt.ylabel("Probability of visit by a walker")
+plt.xlabel("Degree of the node")
+plt.grid(True)
+plt.legend()
+
+plt.show()
