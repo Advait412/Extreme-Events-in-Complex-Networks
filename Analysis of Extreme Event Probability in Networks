@@ -1,0 +1,113 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+random.seed(42)
+
+#PARAMETERS
+dimension = 1000
+steps = 1000000
+walkers = 400
+x_start = 30  # starting point of all walkers
+
+#CONSTRUCT BARABASI-ALBERT NETWORK
+
+def sample_space(n):
+    prob = []
+    total = 0
+    for j in range(n):
+        node_degree = 0
+        for k in range(n):
+            node_degree += adj_matrix[j][k]
+        prob.append(node_degree)
+        total += node_degree
+    if total == 0:
+        return np.ones(n) / n
+    return np.array(prob) / total
+
+def event(prob_event):
+    prob_event = np.array(prob_event, dtype=float)
+    partition = [0]
+    sum_val = 0
+    for i in range(len(prob_event)):
+        sum_val += prob_event[i]
+        partition.append(sum_val)
+    r = random.random()
+    for i in range(len(partition) - 1):
+        if partition[i] <= r < partition[i + 1]:
+            return i
+
+# Initialize Adjacency Matrix
+adj_matrix = np.zeros((dimension, dimension))
+
+for i in range(1, dimension):
+    if i == 1:
+        adj_matrix[0][1] = 1
+        adj_matrix[1][0] = 1
+    else:
+        probs = sample_space(i)
+        picks = set()
+        num_edges = min(3, i)
+        while len(picks) < num_edges:
+            picks.add(event(probs))
+            
+        for node in picks:
+            adj_matrix[i][node] = 1
+            adj_matrix[node][i] = 1
+
+
+# SIMULTANEOUS RANDOM WALKS
+'''Walkers are assumed to be non-interacting, loop used for multiple walkers'''
+traffic = [[0] * steps for d in range(dimension)]
+
+for w in range(walkers):
+    x = x_start  # reset starting point for each new walker
+    
+    for t in range(steps):
+        neighbour = -1
+        adj_nodes = []
+        for j in adj_matrix[x]:
+            neighbour += 1
+            if j == 1:
+                adj_nodes.append(neighbour)
+        
+        # in case a node has no connections
+        if len(adj_nodes) == 0:
+            x = random.randint(0, dimension - 1)
+            continue
+            
+        pick = random.randint(0, len(adj_nodes) - 1)
+        x = adj_nodes[pick]
+        
+        traffic[x][t] += 1
+        
+# to remove bias of common starting point
+traffic = [row[1000:] for row in traffic] 
+
+# EXTREME EVENT COUNTING 
+ex_event_counts = []
+
+for node in range(dimension):
+    row = traffic[node]
+    mean = np.mean(row)
+    std = np.std(row)
+    ex_event = 0
+    for i in row:
+        if i > mean + 5 * std:
+            ex_event += 1   
+    ex_event_counts.append(ex_event)
+
+#  DATA ANALYSIS AND PLOTTING
+degree_of_nodes = [sum(row) for row in adj_matrix]
+
+ext_events_prob = []
+analyzed_steps = len(traffic[0])
+for i in range(dimension):
+    prob = ex_event_counts[i] / analyzed_steps
+    ext_events_prob.append(prob)
+
+plt.scatter(degree_of_nodes, ext_events_prob)
+plt.xlabel("DEGREE OF NODE")
+plt.ylabel("PROBABILITY OF EXTREME EVENT (in simulation)")
+plt.title("PROBABILITY OF EXTREME EVENT (5 sigma)\n400 WALKERS - 10^6 STEPS - 1000 NODE BA NETWORK")
+plt.grid(True)
+plt.show()
